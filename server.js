@@ -241,6 +241,23 @@ app.post('/api/checkout', async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+
+  //address endpoint 
+  app.post('/api/shipping-details', async(req, res) => {
+    try {
+      const {fullName, mobileNumber, province, city, toleName, paymentGateway} = req.body
+
+      const newShippingDetails = await pool.query(
+        'INSERT INTO shipping_details (full_name, mobile_number, province, city,tole_name, payment_gateway) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+         [fullName, mobileNumber, province, city, toleName, paymentGateway]
+      
+        );
+        res.status(201).json({ message: 'Shipping details added successfully', shippingDetails: newShippingDetails.rows[0] });
+    } catch (error) {
+      console.error('Error adding shipping details:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+  })
   
 
 app.listen(PORT, () => {
