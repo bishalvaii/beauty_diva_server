@@ -13,6 +13,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Enable CORS for all routes
 app.use(cors());
 
+const username = 
+
 // Middleware to parse request body
 app.use(bodyParser.json());
 // Define your products data
@@ -166,7 +168,7 @@ app.post('/api/signup', async (req, res) => {
       }
   
       // Insert new user into the database
-      const newUser = await pool.query('INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *', [username, email, password]);
+      const newUser = await pool.query('INSERT INTO users (username, email, password, isAdmin) VALUES ($1, $2, $3, $4) RETURNING *', [username, email, password, false]);
   
       
       console.log(userIdCounter)
@@ -188,7 +190,14 @@ app.post('/api/login', async(req,res) => {
     if(user.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password'})
     }
-    res.status(200).json({ message: 'Login successful', user: user.rows[0] })
+    const userInfo = user.rows[0];
+    const userData = {
+      id: userInfo.id,
+      username: userInfo.username,
+      email: userInfo.email,
+      isAdmin: userInfo.isadmin, // Make sure isAdmin property is included
+    };
+    res.status(200).json({ message: 'Login successful', user: userData })
 
 
   } catch(error) {
@@ -197,31 +206,64 @@ app.post('/api/login', async(req,res) => {
   }
 })
 
+app.get('/admin/orders', async (req, res) => {
+  try {
+    const query = `
+    SELECT
+    o.id AS order_id,
+    o.username,
+    o.total_amount,
+    o.created_at AS order_created_at,
+    od.product_id,
+    od.quantity,
+    CASE
+        WHEN od.total_price IS NULL THEN 'NaN'
+        ELSE od.total_price::text
+    END AS unit_price
+FROM
+    orders o
+JOIN
+    order_details od ON o.id = od.order_id
+ORDER BY
+    o.created_at DESC;`;
+
+    const { rows } = await pool.query(query);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching admin orders:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 //endpoint for checkout
 let userIdCounter = 1;
 app.post('/api/checkout', async (req, res) => {
   try {
-    const { products, totalAmount  } = req.body;
-    let userId = userIdCounter++;
+    const { products, totalAmount,username  } = req.body;
+   
     
+    
+    
+     // Step 1: Get the user ID from the database using the username
+   
 
     
     
 
     const orderInsertResult = await pool.query({
-      text: 'INSERT INTO orders (user_id, total_amount) VALUES ($1, $2) RETURNING id',
-      values: [userId, totalAmount],
+      text: 'INSERT INTO orders (username, total_amount) VALUES ($1, $2) RETURNING id',
+      values: [username, totalAmount],
     });   
 
     const orderId = orderInsertResult.rows[0].id; // Retrieve the inserted order id
-    userId++
+    
 
     // Step 2: Insert order details into the order_details table
     for (const product of products) {
       // const total_price = product.quantity * product.unitPrice;
       await pool.query({
-        text: 'INSERT INTO order_details (order_id, product_id, quantity, total_price) VALUES ($1, $2, $3, $4)',
-        values: [orderId, product.id, product.quantity, totalAmount],
+        text: 'INSERT INTO order_details (order_id, product_id, quantity, total_price,username) VALUES ($1, $2, $3, $4, $5)',
+        values: [orderId, product.id, product.quantity, totalAmount, username],
       });
     }
 
