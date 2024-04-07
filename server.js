@@ -34,7 +34,7 @@ const products = [
       id: 2,
       name: 'Product 2',
       description: 'Description for Product 2',
-      price: 28,
+      price: 20,
       image: {
         url: '/lipstick.png',
         width: 300, // Add width property for the image
@@ -45,7 +45,7 @@ const products = [
       id: 3,
       name: 'Product 3',
       description: 'Description for Product 3',
-      price: 28,
+      price: 30,
       image: {
         url: '/lipstick.png',
         width: 300, // Add width property for the image
@@ -53,9 +53,9 @@ const products = [
       },    },
     {
       id: 4,
-      name: 'Product 1',
+      name: 'Product 4',
       description: 'Description for Product 1',
-      price: 28,
+      price: 36,
       image: {
         url: '/lipstick.png',
         width: 300, // Add width property for the image
@@ -63,9 +63,9 @@ const products = [
       },    },
     {
       id: 5,
-      name: 'Product 2',
+      name: 'Product 5',
       description: 'Description for Product 2',
-      price: 28,
+      price: 40,
       image: {
         url: '/lipstick.png',
         width: 300, // Add width property for the image
@@ -73,7 +73,7 @@ const products = [
       },    },
     {
       id: 6,
-      name: 'Product 3',
+      name: 'Product 6',
       description: 'Description for Product 3',
       price: 28,
       image: {
@@ -83,7 +83,7 @@ const products = [
       },   },
     {
       id: 7,
-      name: 'Product 1',
+      name: 'Product 7',
       description: 'Description for Product 1',
       price: 28,
       image: {
@@ -214,18 +214,30 @@ app.get('/admin/orders', async (req, res) => {
     o.username,
     o.total_amount,
     o.created_at AS order_created_at,
-    od.product_id,
-    od.quantity,
-    CASE
-        WHEN od.total_price IS NULL THEN 'NaN'
-        ELSE od.total_price::text
-    END AS unit_price
+    ARRAY_TO_STRING(ARRAY_AGG(od.product_id), ',') AS product_id,
+    ARRAY_TO_STRING(ARRAY_AGG(od.quantity), ',') AS quantity,
+    s.mobile_number,
+    s.address,
+    s.payment_gateway
 FROM
     orders o
 JOIN
     order_details od ON o.id = od.order_id
+JOIN
+    shipping_details s ON o.id = s.id  
+GROUP BY
+    o.id,
+    o.username,
+    o.total_amount,
+    o.created_at,
+    s.mobile_number,
+    s.address,
+    s.payment_gateway
 ORDER BY
-    o.created_at DESC;`;
+    o.created_at DESC;
+
+    `
+    ;
 
     const { rows } = await pool.query(query);
     res.json(rows);
@@ -287,11 +299,11 @@ app.post('/api/checkout', async (req, res) => {
   //address endpoint 
   app.post('/api/shipping-details', async(req, res) => {
     try {
-      const {fullName, mobileNumber, province, city, toleName, paymentGateway} = req.body
+      const {fullName, mobileNumber, province, city, toleName, paymentGateway, address} = req.body
 
       const newShippingDetails = await pool.query(
-        'INSERT INTO shipping_details (full_name, mobile_number, province, city,tole_name, payment_gateway) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-         [fullName, mobileNumber, province, city, toleName, paymentGateway]
+        'INSERT INTO shipping_details (full_name,address, mobile_number, province, city,tole_name, payment_gateway) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+         [fullName,address, mobileNumber, province, city, toleName, paymentGateway]
       
         );
         res.status(201).json({ message: 'Shipping details added successfully', shippingDetails: newShippingDetails.rows[0] });
