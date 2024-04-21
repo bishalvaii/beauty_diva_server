@@ -312,6 +312,30 @@ app.post('/api/checkout', async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
   }
   })
+
+  app.post('/verify-transaction', async (req, res) => {
+    const { total_amount, transaction_uuid, product_code, signature } = req.body;
+
+    // Verify signature using HMAC/SHA256 algorithm
+    const generatedSignature = generateSignature(total_amount, transaction_uuid, product_code);
+    if (signature !== generatedSignature) {
+        return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    // Perform transaction verification with eSewa
+    // Send request to eSewa endpoint and process the response
+
+    // For demonstration purposes, assume verification is successful
+    const transactionStatus = 'SUCCESS';
+    res.json({ status: transactionStatus });
+});
+
+// Function to generate HMAC/SHA256 signature
+function generateSignature(total_amount, transaction_uuid, product_code) {
+    const secretKey = '8gBm/:&EnhH.1/q'; // SecretKey provided by eSewa
+    const data = `total_amount=${total_amount}&transaction_uuid=${transaction_uuid}&product_code=${product_code}`;
+    return crypto.createHmac('sha256', secretKey).update(data).digest('base64');
+}
   
 
 app.listen(PORT, () => {
