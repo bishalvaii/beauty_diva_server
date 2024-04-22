@@ -209,6 +209,7 @@ app.post('/api/login', async(req,res) => {
 app.get('/admin/orders', async (req, res) => {
   try {
     const query = `
+   
     SELECT
     o.id AS order_id,
     o.username,
@@ -224,7 +225,7 @@ FROM
 JOIN
     order_details od ON o.id = od.order_id
 JOIN
-    shipping_details s ON o.id = s.id  
+    shipping_details s ON o.id = s.order_id
 GROUP BY
     o.id,
     o.username,
@@ -234,10 +235,8 @@ GROUP BY
     s.address,
     s.payment_gateway
 ORDER BY
-    o.created_at DESC;
+    o.created_at DESC`;
 
-    `
-    ;
 
     const { rows } = await pool.query(query);
     res.json(rows);
@@ -248,20 +247,11 @@ ORDER BY
 });
 
 //endpoint for checkout
-let userIdCounter = 1;
+
 app.post('/api/checkout', async (req, res) => {
   try {
     const { products, totalAmount,username  } = req.body;
-   
-    
-    
-    
      // Step 1: Get the user ID from the database using the username
-   
-
-    
-    
-
     const orderInsertResult = await pool.query({
       text: 'INSERT INTO orders (username, total_amount) VALUES ($1, $2) RETURNING id',
       values: [username, totalAmount],
@@ -299,11 +289,11 @@ app.post('/api/checkout', async (req, res) => {
   //address endpoint 
   app.post('/api/shipping-details', async(req, res) => {
     try {
-      const {fullName, mobileNumber, province, city, toleName, paymentGateway, address} = req.body
+      const {fullName, mobileNumber, province, city, toleName, paymentGateway, address,orderId} = req.body
 
       const newShippingDetails = await pool.query(
-        'INSERT INTO shipping_details (full_name,address, mobile_number, province, city,tole_name, payment_gateway) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-         [fullName,address, mobileNumber, province, city, toleName, paymentGateway]
+        'INSERT INTO shipping_details (full_name,address, mobile_number, province, city,tole_name, payment_gateway, order_id) VALUES ($1, $2, $3, $4, $5, $6, $7,$8) RETURNING *',
+         [fullName,address, mobileNumber, province, city, toleName, paymentGateway, orderId]
       
         );
         res.status(201).json({ message: 'Shipping details added successfully', shippingDetails: newShippingDetails.rows[0] });
